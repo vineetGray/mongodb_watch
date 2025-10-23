@@ -25,15 +25,15 @@ let orderCache = new Map();
 
 async function connectDB() {
   try {
-    const client = new MongoClient(process.env.MONGODB_URI || 'mongodb://localhost:27017/orders-db');
+    const client = new MongoClient(process.env.MONGODB_URI);
     await client.connect();
     db = client.db();
-    console.log('✅ Connected to MongoDB');
+    console.log(' Connected to MongoDB');
     
     // Initialize polling
     startPolling();
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error);
+    console.error(' MongoDB connection failed:', error);
   }
 }
 
@@ -49,21 +49,21 @@ function startPolling() {
 }
 
 async function checkForChanges() {
-  // Get all orders
+ 
   const orders = await db.collection('orders').find({}).sort({ createdAt: -1 }).toArray();
   
-  // Check for new orders
+
   const newOrders = orders.filter(order => 
     new Date(order.createdAt) > lastCheckTime && !orderCache.has(order._id.toString())
   );
   
-  // Check for status changes
+
   orders.forEach(order => {
     const orderId = order._id.toString();
     const cachedOrder = orderCache.get(orderId);
     
     if (cachedOrder && cachedOrder.status !== order.status) {
-      // Status changed
+  
       console.log(`🔄 Status changed: ${orderId} ${cachedOrder.status} → ${order.status}`);
       io.emit('statusUpdated', {
         orderId: order._id,
@@ -71,21 +71,19 @@ async function checkForChanges() {
         order: order
       });
       
-      // Auto-progress logic
+    
       handleAutoProgress(order);
     }
     
-    // Update cache
+ 
     orderCache.set(orderId, order);
   });
-  
-  // Handle new orders
+
   newOrders.forEach(order => {
     console.log(`📦 New order: ${order.customerName}`);
     io.emit('orderCreated', order);
     orderCache.set(order._id.toString(), order);
-    
-    // Auto progress to processing after 2 seconds
+ 
     setTimeout(async () => {
       try {
         await db.collection('orders').updateOne(
@@ -127,7 +125,6 @@ function handleAutoProgress(order) {
   }
 }
 
-// API Routes (same as before)
 app.get('/api/orders', async (req, res) => {
   try {
     const orders = await db.collection('orders').find({}).sort({ createdAt: -1 }).toArray();
@@ -165,7 +162,7 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📡 Using POLLING mode (works with single MongoDB instance)`);
+  console.log(`Server running on port ${PORT}`);
+  console.log(` Using POLLING mode (works with single MongoDB instance)`);
   connectDB();
 });
